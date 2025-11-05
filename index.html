@@ -112,4 +112,53 @@
             gridHTML += `<div style="text-align:left; color:#94a3b8; font-weight:600; padding:2px 0; font-size:0.75rem;">${hour}</div>`;
 
             days.forEach(day => {
-              const event = data
+              const event = data.events.find(e => 
+                e.day === day && 
+                parseInt(e.start.split(':')[0]) === hourIndex
+              );
+
+              if (event) {
+                const colorMap = { gray: '#64748b', blue: '#3b82f6', teal: '#14b8a6' };
+                const bg = colorMap[event.color] || '#6b7280';
+                const startHour = parseInt(event.start.split(':')[0]);
+                const endHour = parseInt(event.end.split(':')[0]);
+                const rowspan = endHour - startHour;
+
+                gridHTML += `<div style="
+                  background:${bg}; 
+                  color:white; 
+                  padding:6px 8px; 
+                  border-radius:6px; 
+                  font-weight:600; 
+                  grid-row: span ${rowspan};
+                  display:flex; 
+                  flex-direction:column; 
+                  justify-content:center;
+                  min-height:${rowspan * 24}px;
+                ">
+                  <div style="font-size:0.8rem;">${event.title}</div>
+                  <div style="font-size:0.7rem; opacity:0.9; margin-top:2px;">${event.start}–${event.end}</div>
+                </div>`;
+              } else {
+                gridHTML += `<div style="min-height:24px;"></div>`;
+              }
+            });
+          });
+
+          gridHTML += `</div></div></div>`;
+          result.innerHTML = gridHTML;
+          syncSection.style.display = 'block';
+
+        } catch (err) {
+          console.error('Frontend Error:', err);
+          result.innerHTML = `
+            <p style="color:#ff6b6b; margin:0;">Error: ${err.message}</p>
+            <p style="margin:0; opacity:0.7; font-size:0.8rem;">Check console (F12) for details.</p>
+          `;
+        }
+      });
+    });
+  </script>
+  <!-- ==== END AI FORM ==== -->
+</body>
+</html>
