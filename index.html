@@ -59,6 +59,17 @@
       return;
     }
 
+   <script>
+  // DOM Ready
+  document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('goalForm');
+    const result = document.getElementById('result');
+
+    if (!form || !result) {
+      console.error('Form or result not found');
+      return;
+    }
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const input = document.getElementById('goalsInput').value.trim();
@@ -67,6 +78,8 @@
       result.style.display = 'block';
       result.innerHTML = '<p style="margin:0; opacity:0.8;">Thinking...</p>';
 
+      console.log('Submitting input:', input);
+
       try {
         const res = await fetch('/api/plan', {
           method: 'POST',
@@ -74,93 +87,78 @@
           body: JSON.stringify({ input })
         });
 
+        console.log('Response status:', res.status);
+
         if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
+          const errorText = await res.text();
+          console.error('API Error:', errorText);
+          throw new Error(`HTTP ${res.status}: ${errorText}`);
         }
 
         const data = await res.json();
-        
-        // === RENDER WEEKLY GRID ===
-const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+        console.log('Success data:', data);
 
-let gridHTML = `<div style="margin-top:20px; font-family:Inter,sans-serif;">
-  <h3 style="margin:0 0 10px; color:white;">${data.week}</h3>
-  <div style="display:grid; grid-template-columns: 80px repeat(7, 1fr); gap:5px; font-size:0.85rem;">
-    <div></div>`; // Empty corner
+        // === RENDER WEEKLY GRID (FIXED) ===
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
 
-// === RENDER WEEKLY GRID (FIXED ALIGNMENT + SPANNING) ===
-const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+        let gridHTML = `<div style="margin-top:20px; font-family:Inter,sans-serif;">
+          <h3 style="margin:0 0 10px; color:white; font-weight:700;">${data.week}</h3>
+          <div style="overflow-x:auto;">
+            <div style="display:grid; grid-template-columns: 70px repeat(7, 1fr); gap:4px; font-size:0.85rem; min-width:800px;">
+              <div></div>`;
 
-let gridHTML = `<div style="margin-top:20px; font-family:Inter,sans-serif;">
-  <h3 style="margin:0 0 10px; color:white; font-weight:700;">${data.week}</h3>
-  <div style="overflow-x:auto;">
-    <div style="display:grid; grid-template-columns: 70px repeat(7, 1fr); gap:4px; font-size:0.85rem; min-width:800px;">
-      <div></div>`; // Corner
+        days.forEach(day => {
+          gridHTML += `<div style="text-align:center; font-weight:700; color:#e2e8f0; padding:8px 0; background:rgba(255,255,255,0.1); border-radius:6px;">${day.slice(0,3)}</div>`;
+        });
 
-// Day headers
-days.forEach(day => {
-  gridHTML += `<div style="text-align:center; font-weight:700; color:#e2e8f0; padding:8px 0; background:rgba(255,255,255,0.1); border-radius:6px;">${day.slice(0,3)}</div>`;
-});
+        hours.forEach((hour, hourIndex) => {
+          gridHTML += `<div style="text-align:left; color:#94a3b8; font-weight:600; padding:2px 0; font-size:0.75rem;">${hour}</div>`;
 
-// Time rows
-hours.forEach((hour, hourIndex) => {
-  // Time label (LEFT-ALIGNED)
-  gridHTML += `<div style="text-align:left; color:#94a3b8; font-weight:600; padding:2px 0; font-size:0.75rem;">${hour}</div>`;
+          days.forEach(day => {
+            const event = data.events.find(e => 
+              e.day === day && 
+              parseInt(e.start.split(':')[0]) === hourIndex
+            );
 
-  days.forEach(day => {
-    const event = data.events.find(e => 
-      e.day === day && 
-      parseInt(e.start.split(':')[0]) === hourIndex
-    );
+            if (event) {
+              const colorMap = { gray: '#64748b', blue: '#3b82f6', teal: '#14b8a6' };
+              const bg = colorMap[event.color] || '#6b7280';
+              const startHour = parseInt(event.start.split(':')[0]);
+              const endHour = parseInt(event.end.split(':')[0]);
+              const rowspan = endHour - startHour;
 
-    if (event) {
-      const colorMap = { 
-        gray: '#64748b', 
-        blue: '#3b82f6', 
-        teal: '#14b8a6' 
-      };
-      const bg = colorMap[event.color] || '#6b7280';
+              gridHTML += `<div style="
+                background:${bg}; 
+                color:white; 
+                padding:6px 8px; 
+                border-radius:6px; 
+                font-weight:600; 
+                grid-row: span ${rowspan};
+                display:flex; 
+                flex-direction:column; 
+                justify-content:center;
+                min-height:${rowspan * 24}px;
+              ">
+                <div style="font-size:0.8rem;">${event.title}</div>
+                <div style="font-size:0.7rem; opacity:0.9; margin-top:2px;">${event.start}–${event.end}</div>
+              </div>`;
+            } else {
+              gridHTML += `<div style="min-height:24px;"></div>`;
+            }
+          });
+        });
 
-      // Calculate rowspan (in hours)
-      const startHour = parseInt(event.start.split(':')[0]);
-      const endHour = parseInt(event.end.split(':')[0]);
-      const rowspan = endHour - startHour;
+        gridHTML += `</div></div></div>`;
+        result.innerHTML = gridHTML;
 
-      gridHTML += `<div style="
-        background:${bg}; 
-        color:white; 
-        padding:6px 8px; 
-        border-radius:6px; 
-        font-weight:600; 
-        grid-row: span ${rowspan};
-        display:flex; 
-        flex-direction:column; 
-        justify-content:center;
-        min-height:${rowspan * 24}px;
-      ">
-        <div style="font-size:0.8rem;">${event.title}</div>
-        <div style="font-size:0.7rem; opacity:0.9; margin-top:2px;">${event.start}–${event.end}</div>
-      </div>`;
-    } else {
-      // Empty cell
-      gridHTML += `<div style="min-height:24px;"></div>`;
-    }
-  });
-});
+        // SHOW SYNC BUTTON
+        document.getElementById('syncSection').style.display = 'block';
 
-gridHTML += `</div></div></div>`;
-result.innerHTML = gridHTML;
-
-// SHOW SYNC BUTTON
-document.getElementById('syncSection').style.display = 'block';
-
-// SHOW SYNC BUTTON
-document.getElementById('syncSection').style.display = 'block';
       } catch (err) {
-        console.error('Fetch error:', err);
-        result.innerHTML = `<p style="color:#ff6b6b;">Error: ${err.message}. Check if /api/plan is live.</p>`;
+        console.error('Full error:', err);
+        result.innerHTML = `<p style="color:#ff6b6b; margin:0;">Error: ${err.message}</p>
+                            <p style="margin:0; opacity:0.7;">Check console (F12).</p>`;
       }
     });
   });
