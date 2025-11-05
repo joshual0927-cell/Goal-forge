@@ -42,7 +42,12 @@
 </form>
 
 <div id="result" style="margin-top: 30px; color: white; background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; font-family: monospace; display: none; max-height: 400px; overflow-y: auto;"></div>
-
+<div id="syncSection" style="margin-top: 20px; display: none; text-align:center;">
+  <button id="syncBtn" class="btn" style="background: #4285F4; color: white; width:100%; max-width:400px;">
+    Sync to Google Calendar
+  </button>
+  <p id="syncStatus" style="margin-top: 10px; font-size: 0.9rem; opacity: 0.8; color:white;"></p>
+</div>
 <script>
   // Wait for DOM to load
   document.addEventListener('DOMContentLoaded', () => {
@@ -74,8 +79,45 @@
         }
 
         const data = await res.json();
-        result.innerHTML = '<pre style="margin:0; white-space: pre-wrap; word-wrap: break-word;">' + 
-                           JSON.stringify(data, null, 2) + '</pre>';
+        // === RENDER WEEKLY GRID ===
+const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+
+let gridHTML = `<div style="margin-top:20px; font-family:Inter,sans-serif;">
+  <h3 style="margin:0 0 10px; color:white;">${data.week}</h3>
+  <div style="display:grid; grid-template-columns: 80px repeat(7, 1fr); gap:5px; font-size:0.85rem;">
+    <div></div>`; // Empty corner
+
+// Header: Days
+days.forEach(day => {
+  gridHTML += `<div style="text-align:center; font-weight:700; color:#ccc;">${day.slice(0,3)}</div>`;
+});
+
+gridHTML += `</div><div style="display:grid; grid-template-columns: 80px repeat(7, 1fr); gap:5px; max-height:500px; overflow-y:auto;">`;
+
+// Time labels + cells
+hours.forEach(hour => {
+  gridHTML += `<div style="text-align:right; color:#aaa; font-size:0.8rem;">${hour}</div>`;
+  days.forEach(day => {
+    const event = data.events.find(e => e.day === day && e.start === hour);
+    if (event) {
+      const colorMap = { gray: '#94a3b8', blue: '#3b82f6', teal: '#14b8a6' };
+      const bg = colorMap[event.color] || '#6b7280';
+      const rowspan = parseInt(event.end.split(':')[0]) - parseInt(event.start.split(':')[0]);
+      gridHTML += `<div style="background:${bg}; color:white; padding:4px 6px; border-radius:4px; font-weight:600; grid-row: span ${rowspan};">
+        ${event.title}<br><small>${event.start}–${event.end}</small>
+      </div>`;
+    } else {
+      gridHTML += `<div style="min-height:20px;"></div>`;
+    }
+  });
+});
+
+gridHTML += `</div></div>`;
+result.innerHTML = gridHTML;
+
+// SHOW SYNC BUTTON
+document.getElementById('syncSection').style.display = 'block';
       } catch (err) {
         console.error('Fetch error:', err);
         result.innerHTML = `<p style="color:#ff6b6b;">Error: ${err.message}. Check if /api/plan is live.</p>`;
