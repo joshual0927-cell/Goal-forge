@@ -1,0 +1,11 @@
+{
+  "name": "goal-forge",
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "openai": "^4.26.0"
+  },
+  "scripts": {
+    "vercel-build": "echo 'Build complete'"
+  }
+}
