@@ -79,6 +79,7 @@
         }
 
         const data = await res.json();
+        
         // === RENDER WEEKLY GRID ===
 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
@@ -88,34 +89,72 @@ let gridHTML = `<div style="margin-top:20px; font-family:Inter,sans-serif;">
   <div style="display:grid; grid-template-columns: 80px repeat(7, 1fr); gap:5px; font-size:0.85rem;">
     <div></div>`; // Empty corner
 
-// Header: Days
+// === RENDER WEEKLY GRID (FIXED ALIGNMENT + SPANNING) ===
+const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+
+let gridHTML = `<div style="margin-top:20px; font-family:Inter,sans-serif;">
+  <h3 style="margin:0 0 10px; color:white; font-weight:700;">${data.week}</h3>
+  <div style="overflow-x:auto;">
+    <div style="display:grid; grid-template-columns: 70px repeat(7, 1fr); gap:4px; font-size:0.85rem; min-width:800px;">
+      <div></div>`; // Corner
+
+// Day headers
 days.forEach(day => {
-  gridHTML += `<div style="text-align:center; font-weight:700; color:#ccc;">${day.slice(0,3)}</div>`;
+  gridHTML += `<div style="text-align:center; font-weight:700; color:#e2e8f0; padding:8px 0; background:rgba(255,255,255,0.1); border-radius:6px;">${day.slice(0,3)}</div>`;
 });
 
-gridHTML += `</div><div style="display:grid; grid-template-columns: 80px repeat(7, 1fr); gap:5px; max-height:500px; overflow-y:auto;">`;
+// Time rows
+hours.forEach((hour, hourIndex) => {
+  // Time label (LEFT-ALIGNED)
+  gridHTML += `<div style="text-align:left; color:#94a3b8; font-weight:600; padding:2px 0; font-size:0.75rem;">${hour}</div>`;
 
-// Time labels + cells
-hours.forEach(hour => {
-  gridHTML += `<div style="text-align:right; color:#aaa; font-size:0.8rem;">${hour}</div>`;
   days.forEach(day => {
-    const event = data.events.find(e => e.day === day && e.start === hour);
+    const event = data.events.find(e => 
+      e.day === day && 
+      parseInt(e.start.split(':')[0]) === hourIndex
+    );
+
     if (event) {
-      const colorMap = { gray: '#94a3b8', blue: '#3b82f6', teal: '#14b8a6' };
+      const colorMap = { 
+        gray: '#64748b', 
+        blue: '#3b82f6', 
+        teal: '#14b8a6' 
+      };
       const bg = colorMap[event.color] || '#6b7280';
-      const rowspan = parseInt(event.end.split(':')[0]) - parseInt(event.start.split(':')[0]);
-      gridHTML += `<div style="background:${bg}; color:white; padding:4px 6px; border-radius:4px; font-weight:600; grid-row: span ${rowspan};">
-        ${event.title}<br><small>${event.start}–${event.end}</small>
+
+      // Calculate rowspan (in hours)
+      const startHour = parseInt(event.start.split(':')[0]);
+      const endHour = parseInt(event.end.split(':')[0]);
+      const rowspan = endHour - startHour;
+
+      gridHTML += `<div style="
+        background:${bg}; 
+        color:white; 
+        padding:6px 8px; 
+        border-radius:6px; 
+        font-weight:600; 
+        grid-row: span ${rowspan};
+        display:flex; 
+        flex-direction:column; 
+        justify-content:center;
+        min-height:${rowspan * 24}px;
+      ">
+        <div style="font-size:0.8rem;">${event.title}</div>
+        <div style="font-size:0.7rem; opacity:0.9; margin-top:2px;">${event.start}–${event.end}</div>
       </div>`;
     } else {
-      gridHTML += `<div style="min-height:20px;"></div>`;
+      // Empty cell
+      gridHTML += `<div style="min-height:24px;"></div>`;
     }
   });
 });
 
-gridHTML += `</div></div>`;
-result.innerHTML = '<pre style="margin:0; white-space: pre-wrap; word-wrap: break-word;">' + 
-                   JSON.stringify(data, null, 2) + '</pre>';
+gridHTML += `</div></div></div>`;
+result.innerHTML = gridHTML;
+
+// SHOW SYNC BUTTON
+document.getElementById('syncSection').style.display = 'block';
 
 // SHOW SYNC BUTTON
 document.getElementById('syncSection').style.display = 'block';
