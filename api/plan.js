@@ -14,22 +14,40 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'No input' });
   }
 
-  const prompt = `You are Goal-Forge AI — a master planner. 
+  const prompt = `You are Goal-Forge AI — a master planner.
 
 User input:
 ${input}
 
-Return ONLY valid JSON:
+Rules:
+- Build a FULL 7-day plan (Mon–Sun)
+- Schedule "Gym 3x/week" on Mon/Wed/Fri at 18:00–19:00
+- Work 9–5 Mon–Fri → block 09:00–17:00
+- Sleep 10 PM – 6 AM → block 22:00–06:00 every day
+- 5K training: Week 1 = 3 gym sessions
+- Add buffers: 15 min after work/gym
+- Never double-book
+- Use colors: blue=gym, gray=work, teal=sleep
+
+Return ONLY valid JSON in this exact structure:
 {
   "week": "June 3–9",
   "events": [
+    {
+      "day": "Monday",
+      "start": "09:00",
+      "end": "17:00",
+      "title": "Work",
+      "color": "gray"
+    },
     {
       "day": "Monday",
       "start": "18:00",
       "end": "19:00",
       "title": "Gym (Goal: 5K Training)",
       "color": "blue"
-    }
+    },
+    ...
   ]
 }
 No explanations. No markdown.`;
