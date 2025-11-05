@@ -24,6 +24,7 @@
       background: white; color: #6B4EFF; padding: 16px 32px;
       font-weight: 700; font-size: 1.2rem; border-radius: 12px;
       text-decoration: none; display: inline-block; margin-top: 20px;
+      cursor: pointer; border: none;
     }
     .btn:hover { transform: scale(1.05); }
   </style>
@@ -31,239 +32,84 @@
 <body>
   <h1>Goal-Forge</h1>
   <p>Turn “run a marathon” into a weekly plan — and sync it to your calendar in 60 seconds.</p>
+
   <!-- ==== AI GOAL INPUT FORM ==== -->
-<form id="goalForm" style="margin-top: 40px; max-width: 500px; margin-left: auto; margin-right: auto;">
-  <textarea 
-    id="goalsInput" 
-    placeholder='Try:&#10;"Run a 5K in 8 weeks"&#10;"Work 9–5 Mon–Fri"&#10;"Gym 3x/week"&#10;"Sleep 10 PM – 6 AM"' 
-    style="width: 100%; height: 140px; padding: 14px; border-radius: 12px; font-size: 1rem; font-family: Inter, sans-serif; margin-bottom: 16px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" 
-    required></textarea>
-  <button type="submit" class="btn" style="width: 100%;">Generate My Week</button>
-</form>
+  <form id="goalForm" style="margin-top: 40px; max-width: 500px; margin-left: auto; margin-right: auto;">
+    <textarea
+      id="goalsInput"
+      placeholder='Try:&#10;"Run a 5K in 8 weeks"&#10;"Work 9–5 Mon–Fri"&#10;"Gym 3x/week"&#10;"Sleep 10 PM – 6 AM"'
+      style="width: 100%; height: 140px; padding: 14px; border-radius: 12px; font-size: 1rem; font-family: Inter, sans-serif; margin-bottom: 16px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"
+      required></textarea>
+    <button type="submit" class="btn" style="width: 100%;">Generate My Week</button>
+  </form>
 
-<div id="result" style="margin-top: 30px; color: white; background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; font-family: monospace; display: none; max-height: 400px; overflow-y: auto;"></div>
-<div id="syncSection" style="margin-top: 20px; display: none; text-align:center;">
-  <button id="syncBtn" class="btn" style="background: #4285F4; color: white; width:100%; max-width:400px;">
-    Sync to Google Calendar
-  </button>
-  <p id="syncStatus" style="margin-top: 10px; font-size: 0.9rem; opacity: 0.8; color:white;"></p>
-</div>
-<script>
-  // Wait for DOM to load
-  document.addEventListener('DOMContentLoaded', () => {
-    const form = document.getElementById('goalForm');
-    const result = document.getElementById('result');
+  <div id="result" style="margin-top: 30px; color: white; background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; font-family: monospace; display: none; max-height: 600px; overflow-y: auto;"></div>
 
-    if (!form || !result) {
-      console.error('Form or result div not found');
-      return;
-    }
+  <div id="syncSection" style="margin-top: 20px; display: none; text-align:center;">
+    <button id="syncBtn" class="btn" style="background: #4285F4; color: white; width:100%; max-width:400px;">
+      Sync to Google Calendar
+    </button>
+    <p id="syncStatus" style="margin-top: 10px; font-size: 0.9rem; opacity: 0.8; color:white;"></p>
+  </div>
 
-   <script>
-  // DOM Ready
-  document.addEventListener('DOMContentLoaded', () => {
-    const form = document.getElementById('goalForm');
-    const result = document.getElementById('result');
-
-    if (!form || !result) {
-      console.error('Form or result not found');
-      return;
-    }
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const input = document.getElementById('goalsInput').value.trim();
-      if (!input) return;
-
-      result.style.display = 'block';
-      result.innerHTML = '<p style="margin:0; opacity:0.8;">Thinking...</p>';
-
-      console.log('Submitting input:', input);
-
-      try {
-        const res = await fetch('/api/plan', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ input })
-        });
-
-        console.log('Response status:', res.status);
-
-        if (!res.ok) {
-          const errorText = await res.text();
-          console.error('API Error:', errorText);
-          throw new Error(`HTTP ${res.status}: ${errorText}`);
-        }
-
-        const data = await res.json();
-        console.log('Success data:', data);
-
-        // === RENDER WEEKLY GRID (FIXED) ===
-        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
-
-        let gridHTML = `<div style="margin-top:20px; font-family:Inter,sans-serif;">
-          <h3 style="margin:0 0 10px; color:white; font-weight:700;">${data.week}</h3>
-          <div style="overflow-x:auto;">
-            <div style="display:grid; grid-template-columns: 70px repeat(7, 1fr); gap:4px; font-size:0.85rem; min-width:800px;">
-              <div></div>`;
-
-        days.forEach(day => {
-          gridHTML += `<div style="text-align:center; font-weight:700; color:#e2e8f0; padding:8px 0; background:rgba(255,255,255,0.1); border-radius:6px;">${day.slice(0,3)}</div>`;
-        });
-
-        hours.forEach((hour, hourIndex) => {
-          gridHTML += `<div style="text-align:left; color:#94a3b8; font-weight:600; padding:2px 0; font-size:0.75rem;">${hour}</div>`;
-
-          days.forEach(day => {
-            const event = data.events.find(e => 
-              e.day === day && 
-              parseInt(e.start.split(':')[0]) === hourIndex
-            );
-
-            if (event) {
-              const colorMap = { gray: '#64748b', blue: '#3b82f6', teal: '#14b8a6' };
-              const bg = colorMap[event.color] || '#6b7280';
-              const startHour = parseInt(event.start.split(':')[0]);
-              const endHour = parseInt(event.end.split(':')[0]);
-              const rowspan = endHour - startHour;
-
-              gridHTML += `<div style="
-                background:${bg}; 
-                color:white; 
-                padding:6px 8px; 
-                border-radius:6px; 
-                font-weight:600; 
-                grid-row: span ${rowspan};
-                display:flex; 
-                flex-direction:column; 
-                justify-content:center;
-                min-height:${rowspan * 24}px;
-              ">
-                <div style="font-size:0.8rem;">${event.title}</div>
-                <div style="font-size:0.7rem; opacity:0.9; margin-top:2px;">${event.start}–${event.end}</div>
-              </div>`;
-            } else {
-              gridHTML += `<div style="min-height:24px;"></div>`;
-            }
-          });
-        });
-
-        gridHTML += `</div></div></div>`;
-        result.innerHTML = gridHTML;
-
-        // SHOW SYNC BUTTON
-        document.getElementById('syncSection').style.display = 'block';
-
-      } catch (err) {
-        console.error('Full error:', err);
-        result.innerHTML = `<p style="color:#ff6b6b; margin:0;">Error: ${err.message}</p>
-                            <p style="margin:0; opacity:0.7;">Check console (F12).</p>`;
-      }
-    });
-  });
-</script>
-<!-- ==== END AI FORM ==== -->
+  <!-- ==== FINAL WORKING SCRIPT ==== -->
   <script>
-  document.getElementById('goalForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const input = document.getElementById('goalsInput').value.trim();
-    if (!input) return;
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('goalForm');
+      const result = document.getElementById('result');
+      const syncSection = document.getElementById('syncSection');
 
-    const result = document.getElementById('result');
-    result.style.display = 'block';
-    result.innerHTML = '<p style="margin:0; opacity:0.8;">Thinking...</p>';
-
-    console.log('Submitting input:', input); // DEBUG
-
-    try {
-        const res = await fetch('/api/plan', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({ input })
-        });
-
-        console.log('Status:', res.status);
-
-        if (!res.ok) {
-          const text = await res.text();
-          console.error('Raw response:', text);
-          throw new Error(`API Error ${res.status}: ${text}`);
-        }
-
-        const data = await res.json();
-        console.log('AI Plan:', data);
-
-        // === RENDER WEEKLY GRID ===
-        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
-
-        let gridHTML = `<div style="margin-top:20px; font-family:Inter,sans-serif;">
-          <h3 style="margin:0 0 10px; color:white; font-weight:700;">${data.week}</h3>
-          <div style="overflow-x:auto;">
-            <div style="display:grid; grid-template-columns: 70px repeat(7, 1fr); gap:4px; font-size:0.85rem; min-width:800px;">
-              <div></div>`;
-
-        days.forEach(day => {
-          gridHTML += `<div style="text-align:center; font-weight:700; color:#e2e8f0; padding:8px 0; background:rgba(255,255,255,0.1); border-radius:6px;">${day.slice(0,3)}</div>`;
-        });
-
-        hours.forEach((hour, hourIndex) => {
-          gridHTML += `<div style="text-align:left; color:#94a3b8; font-weight:600; padding:2px 0; font-size:0.75rem;">${hour}</div>`;
-
-          days.forEach(day => {
-            const event = data.events.find(e => 
-              e.day === day && 
-              parseInt(e.start.split(':')[0]) === hourIndex
-            );
-
-            if (event) {
-              const colorMap = { gray: '#64748b', blue: '#3b82f6', teal: '#14b8a6' };
-              const bg = colorMap[event.color] || '#6b7280';
-              const startHour = parseInt(event.start.split(':')[0]);
-              const endHour = parseInt(event.end.split(':')[0]);
-              const rowspan = endHour - startHour;
-
-              gridHTML += `<div style="
-                background:${bg}; 
-                color:white; 
-                padding:6px 8px; 
-                border-radius:6px; 
-                font-weight:600; 
-                grid-row: span ${rowspan};
-                display:flex; 
-                flex-direction:column; 
-                justify-content:center;
-                min-height:${rowspan * 24}px;
-              ">
-                <div style="font-size:0.8rem;">${event.title}</div>
-                <div style="font-size:0.7rem; opacity:0.9; margin-top:2px;">${event.start}–${event.end}</div>
-              </div>`;
-            } else {
-              gridHTML += `<div style="min-height:24px;"></div>`;
-            }
-          });
-        });
-
-        gridHTML += `</div></div></div>`;
-        result.innerHTML = gridHTML;
-
-        document.getElementById('syncSection').style.display = 'block';
-
-      } catch (err) {
-        console.error('Frontend error:', err);
-        result.innerHTML = `<p style="color:#ff6b6b;">Error: ${err.message}</p>`;
+      if (!form || !result || !syncSection) {
+        console.error('Missing elements: form, result, or syncSection');
+        return;
       }
 
-    } catch (err) {
-      console.error('Full error:', err); // DEBUG
-      result.innerHTML = `<p style="color:#ff6b6b; margin:0;">Error: ${err.message}</p>
-                          <p style="margin:0; opacity:0.7;">Check console (F12) for details.</p>`;
-    }
-  });
-</script>
-</body>
-</html>
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const input = document.getElementById('goalsInput').value.trim();
+        if (!input) return;
+
+        result.style.display = 'block';
+        result.innerHTML = '<p style="margin:0; opacity:0.8; color:white;">Thinking...</p>';
+
+        try {
+          const res = await fetch('/api/plan', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({ input })
+          });
+
+          console.log('API Status:', res.status);
+
+          if (!res.ok) {
+            const text = await res.text();
+            console.error('API Error Response:', text);
+            throw new Error(`API ${res.status}: ${text.substring(0, 200)}`);
+          }
+
+          const data = await res.json();
+          console.log('AI Plan:', data);
+
+          // === RENDER WEEKLY GRID ===
+          const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+          const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+
+          let gridHTML = `
+            <div style="margin-top:20px; font-family:Inter,sans-serif;">
+              <h3 style="margin:0 0 10px; color:white; font-weight:700;">${data.week}</h3>
+              <div style="overflow-x:auto;">
+                <div style="display:grid; grid-template-columns: 70px repeat(7, 1fr); gap:4px; font-size:0.85rem; min-width:800px;">
+                  <div></div>`;
+
+          days.forEach(day => {
+            gridHTML += `<div style="text-align:center; font-weight:700; color:#e2e8f0; padding:8px 0; background:rgba(255,255,255,0.1); border-radius:6px;">${day.slice(0,3)}</div>`;
+          });
+
+          hours.forEach((hour, hourIndex) => {
+            gridHTML += `<div style="text-align:left; color:#94a3b8; font-weight:600; padding:2px 0; font-size:0.75rem;">${hour}</div>`;
+
+            days.forEach(day => {
+              const event = data
