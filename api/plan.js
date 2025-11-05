@@ -14,43 +14,42 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'No input' });
   }
 
-  const prompt = `You are Goal-Forge AI — a master planner.
+ const prompt = `You are Goal-Forge AI — a master planner. You MUST follow ALL rules.
 
 User input:
 ${input}
 
-Rules:
-- Build a FULL 7-day plan (Mon–Sun)
-- Schedule "Gym 3x/week" on Mon/Wed/Fri at 18:00–19:00
-- Work 9–5 Mon–Fri → block 09:00–17:00
-- Sleep 10 PM – 6 AM → block 22:00–06:00 every day
-- 5K training: Week 1 = 3 gym sessions
-- Add buffers: 15 min after work/gym
-- Never double-book
-- Use colors: blue=gym, gray=work, teal=sleep
+MANDATORY RULES:
+1. Generate a FULL 7-day plan: Monday through Sunday
+2. Work: 09:00–17:00 on Monday, Tuesday, Wednesday, Thursday, Friday
+3. Gym: 18:00–19:00 on Monday, Wednesday, Friday (3x/week)
+4. Sleep: 22:00–06:00 EVERY DAY (Mon–Sun)
+5. Never skip any day or event
+6. Use exact colors: gray=work, blue=gym, teal=sleep
+7. Output EVERY event — no summaries, no omissions
 
-Return ONLY valid JSON in this exact structure:
+Return ONLY valid JSON. No text. No markdown. No extra fields.
+
 {
   "week": "June 3–9",
   "events": [
-    {
-      "day": "Monday",
-      "start": "09:00",
-      "end": "17:00",
-      "title": "Work",
-      "color": "gray"
-    },
-    {
-      "day": "Monday",
-      "start": "18:00",
-      "end": "19:00",
-      "title": "Gym (Goal: 5K Training)",
-      "color": "blue"
-    },
-    ...
+    {"day": "Monday", "start": "09:00", "end": "17:00", "title": "Work", "color": "gray"},
+    {"day": "Monday", "start": "18:00", "end": "19:00", "title": "Gym (Goal: 5K Training)", "color": "blue"},
+    {"day": "Monday", "start": "22:00", "end": "06:00", "title": "Sleep", "color": "teal"},
+    {"day": "Tuesday", "start": "09:00", "end": "17:00", "title": "Work", "color": "gray"},
+    {"day": "Tuesday", "start": "22:00", "end": "06:00", "title": "Sleep", "color": "teal"},
+    {"day": "Wednesday", "start": "09:00", "end": "17:00", "title": "Work", "color": "gray"},
+    {"day": "Wednesday", "start": "18:00", "end": "19:00", "title": "Gym (Goal: 5K Training)", "color": "blue"},
+    {"day": "Wednesday", "start": "22:00", "end": "06:00", "title": "Sleep", "color": "teal"},
+    {"day": "Thursday", "start": "09:00", "end": "17:00", "title": "Work", "color": "gray"},
+    {"day": "Thursday", "start": "22:00", "end": "06:00", "title": "Sleep", "color": "teal"},
+    {"day": "Friday", "start": "09:00", "end": "17:00", "title": "Work", "color": "gray"},
+    {"day": "Friday", "start": "18:00", "end": "19:00", "title": "Gym (Goal: 5K Training)", "color": "blue"},
+    {"day": "Friday", "start": "22:00", "end": "06:00", "title": "Sleep", "color": "teal"},
+    {"day": "Saturday", "start": "22:00", "end": "06:00", "title": "Sleep", "color": "teal"},
+    {"day": "Sunday", "start": "22:00", "end": "06:00", "title": "Sleep", "color": "teal"}
   ]
-}
-No explanations. No markdown.`;
+}`;
 
   try {
     const completion = await openai.chat.completions.create({
