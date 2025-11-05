@@ -167,9 +167,48 @@ document.getElementById('syncSection').style.display = 'block';
 </script>
 <!-- ==== END AI FORM ==== -->
   <script>
-    document.getElementById('waitlist').addEventListener('click', () => {
-      alert('Waitlist coming soon! Check back in 24h.');
-    });
-  </script>
+  document.getElementById('goalForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = document.getElementById('goalsInput').value.trim();
+    if (!input) return;
+
+    const result = document.getElementById('result');
+    result.style.display = 'block';
+    result.innerHTML = '<p style="margin:0; opacity:0.8;">Thinking...</p>';
+
+    console.log('Submitting input:', input); // DEBUG
+
+    try {
+      const res = await fetch('/api/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input })
+      });
+
+      console.log('Response status:', res.status); // DEBUG
+      console.log('Response headers:', res.headers); // DEBUG
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('API Error:', errorText); // DEBUG
+        throw new Error(`HTTP ${res.status}: ${errorText}`);
+      }
+
+      const data = await res.json();
+      console.log('Success data:', data); // DEBUG
+
+      // RENDER GRID (PASTE YOUR GRID CODE HERE)
+      // ... (your full grid renderer from earlier)
+
+      // SHOW SYNC BUTTON
+      document.getElementById('syncSection').style.display = 'block';
+
+    } catch (err) {
+      console.error('Full error:', err); // DEBUG
+      result.innerHTML = `<p style="color:#ff6b6b; margin:0;">Error: ${err.message}</p>
+                          <p style="margin:0; opacity:0.7;">Check console (F12) for details.</p>`;
+    }
+  });
+</script>
 </body>
 </html>
