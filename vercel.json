@@ -2,18 +2,26 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/*.js",
+      "src": "api/plan.js",
       "use": "@vercel/node"
     },
     {
-      "src": "**",
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "thanks.html",
       "use": "@vercel/static"
     }
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
+      "src": "/api/plan",
+      "dest": "/api/plan.js"
+    },
+    {
+      "src": "/thanks",
+      "dest": "/thanks.html"
     },
     {
       "src": "/(.*)",
