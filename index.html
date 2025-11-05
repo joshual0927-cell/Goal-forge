@@ -44,28 +44,43 @@
 <div id="result" style="margin-top: 30px; color: white; background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; font-family: monospace; display: none; max-height: 400px; overflow-y: auto;"></div>
 
 <script>
-  document.getElementById('goalForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const input = document.getElementById('goalsInput').value.trim();
-    if (!input) return;
-
+  // Wait for DOM to load
+  document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('goalForm');
     const result = document.getElementById('result');
-    result.style.display = 'block';
-    result.innerHTML = '<p style="margin:0; opacity:0.8;">Thinking...</p>';
 
-    try {
-      const res = await fetch('/api/plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input })
-      });
-
-      const data = await res.json();
-      result.innerHTML = '<pre style="margin:0; white-space: pre-wrap; word-wrap: break-word;">' + 
-                         JSON.stringify(data, null, 2) + '</pre>';
-    } catch (err) {
-      result.innerHTML = '<p style="color:#ff6b6b;">Error: Could not reach AI. Check console.</p>';
+    if (!form || !result) {
+      console.error('Form or result div not found');
+      return;
     }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('goalsInput').value.trim();
+      if (!input) return;
+
+      result.style.display = 'block';
+      result.innerHTML = '<p style="margin:0; opacity:0.8;">Thinking...</p>';
+
+      try {
+        const res = await fetch('/api/plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ input })
+        });
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        result.innerHTML = '<pre style="margin:0; white-space: pre-wrap; word-wrap: break-word;">' + 
+                           JSON.stringify(data, null, 2) + '</pre>';
+      } catch (err) {
+        console.error('Fetch error:', err);
+        result.innerHTML = `<p style="color:#ff6b6b;">Error: ${err.message}. Check if /api/plan is live.</p>`;
+      }
+    });
   });
 </script>
 <!-- ==== END AI FORM ==== -->
