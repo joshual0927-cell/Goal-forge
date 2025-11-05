@@ -59,10 +59,7 @@
     const result = document.getElementById('result');
     const syncSection = document.getElementById('syncSection');
 
-    if (!form || !result || !syncSection) {
-      console.error('Missing elements');
-      return;
-    }
+    if (!form || !result || !syncSection) return;
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -79,21 +76,18 @@
           body: JSON.stringify({ input })
         });
 
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(`API ${res.status}: ${text.substring(0, 100)}`);
-        }
+        if (!res.ok) throw new Error(`API ${res.status}`);
 
         const data = await res.json();
 
-        // === PERFECT GRID: EVERY HOUR, NO GAPS ===
+        // === 100% ALIGNED GRID ===
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
         const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
 
         let gridHTML = `
           <div style="margin-top:20px; font-family:Inter,sans-serif;">
             <h3 style="margin:0 0 10px; color:white; font-weight:700;">${data.week}</h3>
-            <div style="overflow-x:auto;">
+            <div style="overflow-x:auto; overflow-y:hidden;">
               <div style="display:grid; grid-template-columns: 70px repeat(7, 1fr); gap:4px; font-size:0.85rem; min-width:800px;">
                 <div></div>`;
 
@@ -102,13 +96,13 @@
           gridHTML += `<div style="text-align:center; font-weight:700; color:#e2e8f0; padding:8px 0; background:rgba(255,255,255,0.1); border-radius:6px;">${day.slice(0,3)}</div>`;
         });
 
-        // Every hour
+        // 24 ROWS — EVERY CELL EXISTS
         hours.forEach((hour, hourIndex) => {
-          // Time label — ALWAYS on left
+          // TIME LABEL — ALWAYS COLUMN 1
           gridHTML += `<div style="text-align:left; color:#94a3b8; font-weight:600; padding:2px 0; font-size:0.75rem;">${hour}</div>`;
 
-          // Each day
-          days.forEach(day => {
+          // EACH DAY — COLUMN 2–8
+          days.forEach((day, dayIndex) => {
             const event = data.events.find(e => 
               e.day === day && 
               parseInt(e.start.split(':')[0]) === hourIndex
@@ -138,8 +132,8 @@
                 <div style="font-size:0.7rem; opacity:0.9; margin-top:2px;">${event.start}–${event.end}</div>
               </div>`;
             } else {
-              // EMPTY CELL — CRITICAL FOR ALIGNMENT
-              gridHTML += `<div style="min-height:24px; border-left: 1px solid rgba(255,255,255,0.05);"></div>`;
+              // EMPTY CELL — KEEPS ALIGNMENT
+              gridHTML += `<div style="min-height:24px;"></div>`;
             }
           });
         });
