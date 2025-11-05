@@ -53,112 +53,107 @@
   </div>
 
   <!-- ==== FINAL WORKING SCRIPT ==== -->
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const form = document.getElementById('goalForm');
-      const result = document.getElementById('result');
-      const syncSection = document.getElementById('syncSection');
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('goalForm');
+    const result = document.getElementById('result');
+    const syncSection = document.getElementById('syncSection');
 
-      if (!form || !result || !syncSection) {
-        console.error('Missing elements: form, result, or syncSection');
-        return;
-      }
+    if (!form || !result || !syncSection) {
+      console.error('Missing elements');
+      return;
+    }
 
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const input = document.getElementById('goalsInput').value.trim();
-        if (!input) return;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('goalsInput').value.trim();
+      if (!input) return;
 
-        result.style.display = 'block';
-        result.innerHTML = '<p style="margin:0; opacity:0.8; color:white;">Thinking...</p>';
+      result.style.display = 'block';
+      result.innerHTML = '<p style="margin:0; opacity:0.8; color:white;">Thinking...</p>';
 
-        try {
-          const res = await fetch('/api/plan', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify({ input })
-          });
+      try {
+        const res = await fetch('/api/plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ input })
+        });
 
-          console.log('API Status:', res.status);
-
-          if (!res.ok) {
-            const text = await res.text();
-            console.error('API Error Response:', text);
-            throw new Error(`API ${res.status}: ${text.substring(0, 200)}`);
-          }
-
-          const data = await res.json();
-          console.log('AI Plan:', data);
-
-          // === RENDER WEEKLY GRID ===
-          const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-          const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
-
-          let gridHTML = `
-            <div style="margin-top:20px; font-family:Inter,sans-serif;">
-              <h3 style="margin:0 0 10px; color:white; font-weight:700;">${data.week}</h3>
-              <div style="overflow-x:auto;">
-                <div style="display:grid; grid-template-columns: 70px repeat(7, 1fr); gap:4px; font-size:0.85rem; min-width:800px;">
-                  <div></div>`;
-
-          days.forEach(day => {
-            gridHTML += `<div style="text-align:center; font-weight:700; color:#e2e8f0; padding:8px 0; background:rgba(255,255,255,0.1); border-radius:6px;">${day.slice(0,3)}</div>`;
-          });
-
-          hours.forEach((hour, hourIndex) => {
-            gridHTML += `<div style="text-align:left; color:#94a3b8; font-weight:600; padding:2px 0; font-size:0.75rem;">${hour}</div>`;
-
-            days.forEach(day => {
-              const event = data.events.find(e => 
-                e.day === day && 
-                parseInt(e.start.split(':')[0]) === hourIndex
-              );
-
-              if (event) {
-                const colorMap = { gray: '#64748b', blue: '#3b82f6', teal: '#14b8a6' };
-                const bg = colorMap[event.color] || '#6b7280';
-                const startHour = parseInt(event.start.split(':')[0]);
-                const endHour = parseInt(event.end.split(':')[0]);
-                const rowspan = endHour - startHour;
-
-                gridHTML += `<div style="
-                  background:${bg}; 
-                  color:white; 
-                  padding:6px 8px; 
-                  border-radius:6px; 
-                  font-weight:600; 
-                  grid-row: span ${rowspan};
-                  display:flex; 
-                  flex-direction:column; 
-                  justify-content:center;
-                  min-height:${rowspan * 24}px;
-                ">
-                  <div style="font-size:0.8rem;">${event.title}</div>
-                  <div style="font-size:0.7rem; opacity:0.9; margin-top:2px;">${event.start}–${event.end}</div>
-                </div>`;
-              } else {
-                gridHTML += `<div style="min-height:24px;"></div>`;
-              }
-            });
-          });
-
-          gridHTML += `</div></div></div>`;
-          result.innerHTML = gridHTML;
-          syncSection.style.display = 'block';
-
-        } catch (err) {
-          console.error('Frontend Error:', err);
-          result.innerHTML = `
-            <p style="color:#ff6b6b; margin:0;">Error: ${err.message}</p>
-            <p style="margin:0; opacity:0.7; font-size:0.8rem;">Check console (F12) for details.</p>
-          `;
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`API ${res.status}: ${text.substring(0, 100)}`);
         }
-      });
+
+        const data = await res.json();
+
+        // === PERFECT GRID: EVERY HOUR, NO GAPS ===
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+
+        let gridHTML = `
+          <div style="margin-top:20px; font-family:Inter,sans-serif;">
+            <h3 style="margin:0 0 10px; color:white; font-weight:700;">${data.week}</h3>
+            <div style="overflow-x:auto;">
+              <div style="display:grid; grid-template-columns: 70px repeat(7, 1fr); gap:4px; font-size:0.85rem; min-width:800px;">
+                <div></div>`;
+
+        // Day headers
+        days.forEach(day => {
+          gridHTML += `<div style="text-align:center; font-weight:700; color:#e2e8f0; padding:8px 0; background:rgba(255,255,255,0.1); border-radius:6px;">${day.slice(0,3)}</div>`;
+        });
+
+        // Every hour
+        hours.forEach((hour, hourIndex) => {
+          // Time label — ALWAYS on left
+          gridHTML += `<div style="text-align:left; color:#94a3b8; font-weight:600; padding:2px 0; font-size:0.75rem;">${hour}</div>`;
+
+          // Each day
+          days.forEach(day => {
+            const event = data.events.find(e => 
+              e.day === day && 
+              parseInt(e.start.split(':')[0]) === hourIndex
+            );
+
+            if (event) {
+              const colorMap = { gray: '#64748b', blue: '#3b82f6', teal: '#14b8a6' };
+              const bg = colorMap[event.color] || '#6b7280';
+              const startHour = parseInt(event.start.split(':')[0]);
+              const endHour = parseInt(event.end.split(':')[0]);
+              const rowspan = endHour - startHour;
+
+              gridHTML += `<div style="
+                background:${bg}; 
+                color:white; 
+                padding:6px 8px; 
+                border-radius:6px; 
+                font-weight:600; 
+                grid-row: span ${rowspan};
+                display:flex; 
+                flex-direction:column; 
+                justify-content:center;
+                min-height:${rowspan * 24}px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+              ">
+                <div style="font-size:0.8rem;">${event.title}</div>
+                <div style="font-size:0.7rem; opacity:0.9; margin-top:2px;">${event.start}–${event.end}</div>
+              </div>`;
+            } else {
+              // EMPTY CELL — CRITICAL FOR ALIGNMENT
+              gridHTML += `<div style="min-height:24px; border-left: 1px solid rgba(255,255,255,0.05);"></div>`;
+            }
+          });
+        });
+
+        gridHTML += `</div></div></div>`;
+        result.innerHTML = gridHTML;
+        syncSection.style.display = 'block';
+
+      } catch (err) {
+        result.innerHTML = `<p style="color:#ff6b6b;">Error: ${err.message}</p>`;
+      }
     });
-  </script>
+  });
+</script>
   <!-- ==== END AI FORM ==== -->
 </body>
 </html>
