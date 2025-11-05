@@ -177,29 +177,86 @@
     console.log('Submitting input:', input); // DEBUG
 
     try {
-      const res = await fetch('/api/plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input })
-      });
+        const res = await fetch('/api/plan', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ input })
+        });
 
-      console.log('Response status:', res.status); // DEBUG
-      console.log('Response headers:', res.headers); // DEBUG
+        console.log('Status:', res.status);
 
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error('API Error:', errorText); // DEBUG
-        throw new Error(`HTTP ${res.status}: ${errorText}`);
+        if (!res.ok) {
+          const text = await res.text();
+          console.error('Raw response:', text);
+          throw new Error(`API Error ${res.status}: ${text}`);
+        }
+
+        const data = await res.json();
+        console.log('AI Plan:', data);
+
+        // === RENDER WEEKLY GRID ===
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+
+        let gridHTML = `<div style="margin-top:20px; font-family:Inter,sans-serif;">
+          <h3 style="margin:0 0 10px; color:white; font-weight:700;">${data.week}</h3>
+          <div style="overflow-x:auto;">
+            <div style="display:grid; grid-template-columns: 70px repeat(7, 1fr); gap:4px; font-size:0.85rem; min-width:800px;">
+              <div></div>`;
+
+        days.forEach(day => {
+          gridHTML += `<div style="text-align:center; font-weight:700; color:#e2e8f0; padding:8px 0; background:rgba(255,255,255,0.1); border-radius:6px;">${day.slice(0,3)}</div>`;
+        });
+
+        hours.forEach((hour, hourIndex) => {
+          gridHTML += `<div style="text-align:left; color:#94a3b8; font-weight:600; padding:2px 0; font-size:0.75rem;">${hour}</div>`;
+
+          days.forEach(day => {
+            const event = data.events.find(e => 
+              e.day === day && 
+              parseInt(e.start.split(':')[0]) === hourIndex
+            );
+
+            if (event) {
+              const colorMap = { gray: '#64748b', blue: '#3b82f6', teal: '#14b8a6' };
+              const bg = colorMap[event.color] || '#6b7280';
+              const startHour = parseInt(event.start.split(':')[0]);
+              const endHour = parseInt(event.end.split(':')[0]);
+              const rowspan = endHour - startHour;
+
+              gridHTML += `<div style="
+                background:${bg}; 
+                color:white; 
+                padding:6px 8px; 
+                border-radius:6px; 
+                font-weight:600; 
+                grid-row: span ${rowspan};
+                display:flex; 
+                flex-direction:column; 
+                justify-content:center;
+                min-height:${rowspan * 24}px;
+              ">
+                <div style="font-size:0.8rem;">${event.title}</div>
+                <div style="font-size:0.7rem; opacity:0.9; margin-top:2px;">${event.start}–${event.end}</div>
+              </div>`;
+            } else {
+              gridHTML += `<div style="min-height:24px;"></div>`;
+            }
+          });
+        });
+
+        gridHTML += `</div></div></div>`;
+        result.innerHTML = gridHTML;
+
+        document.getElementById('syncSection').style.display = 'block';
+
+      } catch (err) {
+        console.error('Frontend error:', err);
+        result.innerHTML = `<p style="color:#ff6b6b;">Error: ${err.message}</p>`;
       }
-
-      const data = await res.json();
-      console.log('Success data:', data); // DEBUG
-
-      // RENDER GRID (PASTE YOUR GRID CODE HERE)
-      // ... (your full grid renderer from earlier)
-
-      // SHOW SYNC BUTTON
-      document.getElementById('syncSection').style.display = 'block';
 
     } catch (err) {
       console.error('Full error:', err); // DEBUG
