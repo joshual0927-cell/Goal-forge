@@ -114,7 +114,8 @@ hours.forEach(hour => {
 });
 
 gridHTML += `</div></div>`;
-result.innerHTML = gridHTML;
+result.innerHTML = '<pre style="margin:0; white-space: pre-wrap; word-wrap: break-word;">' + 
+                   JSON.stringify(data, null, 2) + '</pre>';
 
 // SHOW SYNC BUTTON
 document.getElementById('syncSection').style.display = 'block';
