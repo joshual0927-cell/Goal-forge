@@ -80,60 +80,65 @@
 
         const data = await res.json();
 
-        // === 100% ALIGNED GRID ===
+        // === FINAL GRID: 24 ROWS, 8 COLUMNS, NO GAPS ===
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+        const hours = Array.from({length: 24}, (_, i) => i);
 
         let gridHTML = `
           <div style="margin-top:20px; font-family:Inter,sans-serif;">
             <h3 style="margin:0 0 10px; color:white; font-weight:700;">${data.week}</h3>
-            <div style="overflow-x:auto; overflow-y:hidden;">
-              <div style="display:grid; grid-template-columns: 70px repeat(7, 1fr); gap:4px; font-size:0.85rem; min-width:800px;">
+            <div style="overflow-x:auto;">
+              <div style="display:grid; grid-template-columns: 70px repeat(7, 1fr); grid-template-rows: repeat(24, 30px); gap:2px; font-size:0.8rem; min-width:800px;">
                 <div></div>`;
 
-        // Day headers
+        // Day headers (row 0)
         days.forEach(day => {
-          gridHTML += `<div style="text-align:center; font-weight:700; color:#e2e8f0; padding:8px 0; background:rgba(255,255,255,0.1); border-radius:6px;">${day.slice(0,3)}</div>`;
+          gridHTML += `<div style="grid-row:1; text-align:center; font-weight:700; color:#e2e8f0; padding:8px 0; background:rgba(255,255,255,0.1); border-radius:6px;">${day.slice(0,3)}</div>`;
         });
 
-        // 24 ROWS — EVERY CELL EXISTS
-        hours.forEach((hour, hourIndex) => {
-          // TIME LABEL — ALWAYS COLUMN 1
-          gridHTML += `<div style="text-align:left; color:#94a3b8; font-weight:600; padding:2px 0; font-size:0.75rem;">${hour}</div>`;
+        // 24 rows of time + events
+        hours.forEach(hour => {
+          const hourStr = `${hour.toString().padStart(2, '0')}:00`;
+          const row = hour + 2; // +2 because row 1 is header
 
-          // EACH DAY — COLUMN 2–8
+          // TIME LABEL — ALWAYS COLUMN 1
+          gridHTML += `<div style="grid-row:${row}; grid-column:1; text-align:left; color:#94a3b8; font-weight:600; padding:4px 0;">${hourStr}</div>`;
+
+          // EACH DAY
           days.forEach((day, dayIndex) => {
+            const col = dayIndex + 2;
             const event = data.events.find(e => 
               e.day === day && 
-              parseInt(e.start.split(':')[0]) === hourIndex
+              parseInt(e.start.split(':')[0]) === hour
             );
 
-            if (event) {
-              const colorMap = { gray: '#64748b', blue: '#3b82f6', teal: '#14b8a6' };
-              const bg = colorMap[event.color] || '#6b7280';
+            if (event && !event.rendered) {
               const startHour = parseInt(event.start.split(':')[0]);
               const endHour = parseInt(event.end.split(':')[0]);
-              const rowspan = endHour - startHour;
+              const rowspan = endHour > startHour ? endHour - startHour : 24 - startHour + endHour;
+
+              const colorMap = { gray: '#64748b', blue: '#3b82f6', teal: '#14b8a6' };
+              const bg = colorMap[event.color] || '#6b7280';
 
               gridHTML += `<div style="
+                grid-row: ${row} / span ${rowspan};
+                grid-column: ${col};
                 background:${bg}; 
                 color:white; 
                 padding:6px 8px; 
                 border-radius:6px; 
                 font-weight:600; 
-                grid-row: span ${rowspan};
                 display:flex; 
                 flex-direction:column; 
                 justify-content:center;
-                min-height:${rowspan * 24}px;
+                min-height:${rowspan * 30}px;
                 box-shadow: 0 1px 3px rgba(0,0,0,0.2);
               ">
                 <div style="font-size:0.8rem;">${event.title}</div>
                 <div style="font-size:0.7rem; opacity:0.9; margin-top:2px;">${event.start}–${event.end}</div>
               </div>`;
-            } else {
-              // EMPTY CELL — KEEPS ALIGNMENT
-              gridHTML += `<div style="min-height:24px;"></div>`;
+
+              event.rendered = true; // prevent double render
             }
           });
         });
@@ -149,5 +154,52 @@
   });
 </script>
   <!-- ==== END AI FORM ==== -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+  let currentPlan = null;
+  document.getElementById('syncBtn')?.addEventListener('click', () => {
+    if (!currentPlan) return;
+    google.accounts.oauth2.initTokenClient({
+      client_id: 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com',
+      scope: 'https://www.googleapis.com/auth/calendar.events',
+      callback: (resp) => {
+        if (resp.error) return;
+        syncToCalendar(resp.access_token);
+      }
+    }).requestAccessToken();
+  });
+
+  async function syncToCalendar(token) {
+    const status = document.getElementById('syncStatus');
+    status.textContent = 'Syncing...';
+    let count = 0;
+    for (const e of currentPlan.events) {
+      const [year, month, dayNum] = [2025, 6, ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].indexOf(e.day) + 3];
+      await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          summary: e.title,
+          start: { dateTime: `${year}-${month.toString().padStart(2,'0')}-${dayNum.toString().padStart(2,'0')}T${e.start}:00` },
+          end: { dateTime: `${year}-${month.toString().padStart(2,'0')}-${dayNum.toString().padStart(2,'0')}T${e.end}:00` },
+          colorId: e.color === 'blue' ? '11' : e.color === 'teal' ? '10' : '9'
+        })
+      });
+      count++;
+    }
+    status.innerHTML = `Synced ${count} events!`;
+  }
+
+  // Capture plan after render
+  const originalInnerHTML = result.innerHTML;
+  Object.defineProperty(result, 'innerHTML', {
+    set: function(html) {
+      originalInnerHTML.set.call(this, html);
+      const data = JSON.parse(html.match(/data-week="([^"]+)"/)?.[1] || '{}');
+      if (data.events) currentPlan = data;
+    },
+    get: originalInnerHTML.get
+  });
+</script>
 </body>
 </html>
