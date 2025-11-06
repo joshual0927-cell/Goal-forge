@@ -154,42 +154,81 @@
   </script>
 
   <!-- GOOGLE CALENDAR SYNC -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script>
-    document.getElementById('syncBtn')?.addEventListener('click', () => {
-      if (!currentPlan) return;
-      google.accounts.oauth2.initTokenClient({
-        client_id: 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com',
-        scope: 'https://www.googleapis.com/auth/calendar.events',
-        callback: (resp) => {
-          if (resp.error) return;
-          syncToCalendar(resp.access_token);
+<!-- GOOGLE CALENDAR SYNC -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+  document.getElementById('syncBtn')?.addEventListener('click', () => {
+    if (!currentPlan) return;
+    google.accounts.oauth2.initTokenClient({
+      client_id: '810413380835-npuptji2ud5b5t684iej9qhs4akrpgnc.apps.googleusercontent.com',
+      scope: 'https://www.googleapis.com/auth/calendar.events',
+      callback: (resp) => {
+        if (resp.error) {
+          document.getElementById('syncStatus').textContent = 'OAuth error: ' + resp.error;
+          return;
         }
-      }).requestAccessToken();
-    });
-
-    async function syncToCalendar(token) {
-      const status = document.getElementById('syncStatus');
-      status.textContent = 'Syncing...';
-      let count = 0;
-      for (const e of currentPlan.events) {
-        const dayIndex = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].indexOf(e.day);
-        const date = new Date(2025, 5, 3 + dayIndex); // June 3 = Monday
-        const [year, month, day] = [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')];
-        await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            summary: e.title,
-            start: { dateTime: `${year}-${month}-${day}T${e.start}:00` },
-            end: { dateTime: `${year}-${month}-${day}T${e.end}:00` },
-            colorId: e.color === 'blue' ? '11' : e.color === 'teal' ? '10' : '9'
-          })
-        });
-        count++;
+        syncToCalendar(resp.access_token);
       }
-      status.innerHTML = `Synced ${count} events to Google Calendar!`;
+    }).requestAccessToken();
+  });
+
+  async function syncToCalendar(token) {
+    const status = document.getElementById('syncStatus');
+    status.textContent = 'Syncing events...';
+    let count = 0;
+    let errors = 0;
+
+    for (const e of currentPlan.events) {
+      const dayIndex = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].indexOf(e.day);
+      const date = new Date(2025, 5, 3 + dayIndex); // June 3 = Monday
+      const [year, month, day] = [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')];
+      
+      let startDateTime = `${year}-${month}-${day}T${e.start}:00+00:00`;
+      let endDateTime = `${year}-${month}-${day}T${e.end}:00+00:00`;
+
+      // FIXED: Handle overnight (sleep 22:00–06:00) — end on next day
+      if (parseInt(e.end) < parseInt(e.start)) {
+        const nextDate = new Date(date);
+        nextDate.setDate(date.getDate() + 1);
+        const [nextYear, nextMonth, nextDay] = [nextDate.getFullYear(), String(nextDate.getMonth() + 1).padStart(2, '0'), String(nextDate.getDate()).padStart(2, '0')];
+        endDateTime = `${nextYear}-${nextMonth}-${nextDay}T${e.end}:00+00:00`;
+      }
+
+      const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`, 
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({
+          summary: e.title,
+          start: { 
+            dateTime: startDateTime,
+            timeZone: 'UTC' 
+          },
+          end: { 
+            dateTime: endDateTime,
+            timeZone: 'UTC' 
+          },
+          colorId: e.color === 'blue' ? '11' : e.color === 'teal' ? '10' : '9'
+        })
+      });
+
+      if (response.ok) {
+        count++;
+      } else {
+        errors++;
+        const errorText = await response.text();
+        console.error('Event error for ' + e.title + ':', response.status, errorText);
+      }
     }
-  </script>
+
+    if (errors > 0) {
+      status.innerHTML = `Synced ${count} events (${errors} errors — check console for details)`;
+    } else {
+      status.innerHTML = `Synced ${count} events to Google Calendar! ✅`;
+    }
+  }
+</script>
 </body>
 </html>
