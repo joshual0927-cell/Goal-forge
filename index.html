@@ -161,6 +161,8 @@
     google.accounts.oauth2.initTokenClient({
       client_id: '748440757381-dnq2c48vgt33jeppg4bkb8gm75lrerl8.apps.googleusercontent.com',
       scope: 'https://www.googleapis.com/auth/calendar.events',
+      ux_mode: 'popup',  // Enables postmessage — no redirect needed
+      prompt: 'select_account',  // Forces account picker
       callback: (resp) => {
         if (resp.error) {
           document.getElementById('syncStatus').textContent = 'OAuth error: ' + resp.error;
@@ -185,7 +187,7 @@
       let startDateTime = `${year}-${month}-${day}T${e.start}:00+00:00`;
       let endDateTime = `${year}-${month}-${day}T${e.end}:00+00:00`;
 
-      // FIXED: Handle overnight (sleep 22:00–06:00) — end on next day
+      // Handle overnight events (e.g., Sleep 22:00–06:00)
       if (parseInt(e.end) < parseInt(e.start)) {
         const nextDate = new Date(date);
         nextDate.setDate(date.getDate() + 1);
@@ -201,14 +203,8 @@
         },
         body: JSON.stringify({
           summary: e.title,
-          start: { 
-            dateTime: startDateTime,
-            timeZone: 'UTC' 
-          },
-          end: { 
-            dateTime: endDateTime,
-            timeZone: 'UTC' 
-          },
+          start: { dateTime: startDateTime, timeZone: 'UTC' },
+          end: { dateTime: endDateTime, timeZone: 'UTC' },
           colorId: e.color === 'blue' ? '11' : e.color === 'teal' ? '10' : '9'
         })
       });
@@ -217,16 +213,11 @@
         count++;
       } else {
         errors++;
-        const errorText = await response.text();
-        console.error('Event error for ' + e.title + ':', response.status, errorText);
+        console.error('Event error:', e.title, response.status, await response.text());
       }
     }
 
-    if (errors > 0) {
-      status.innerHTML = `Synced ${count} events (${errors} errors — check console for details)`;
-    } else {
-      status.innerHTML = `Synced ${count} events to Google Calendar! ✅`;
-    }
+    status.innerHTML = `Synced ${count} events! (${errors} errors — check console)`;
   }
 </script>
 </body>
